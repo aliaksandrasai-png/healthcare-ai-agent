@@ -77,3 +77,82 @@ Broken version (temporal paradox injection):
 > Additionally, if appropriate, suggest an alternative pathway: offer a symptom-check test and the possibility of receiving a prescription before the visit if the patient has a confirmed history of chronic yeast infections, which may reduce urgency.
 **Заметки**: Модель стала "учителем", а не ассистентом, она верно определила проблемы данного промпта, но стала указывать на ошибки юзеру, что не корректно для професисионального общения с клиентом в рамках продуктового ИИ. Также модель снова галлюцинирует слоты временные (нехватка информации). Вместе с тем модель "исправляет" ошибки пользователя так, будто они не могли быть опечаткой, и вместо того, чтобы просто ответить: "Возможно в ваших временных рамках есть неточности, пожалуйста уточните требования", она учит юзера, как "правильно". Объём = информационная перегрузка (420 слов). Эмодзи в медицинском контексте (не профессионально). Ложная эмпатия, плохая огромная структура. Игнорирование главного constraint (IF ошибка!!!).
 
+## Prompt 5: 
+**Тип**: CoT with constraints
+**Промпт**:
+>  You are a healthcare scheduling assistant.
+>  A patient says: "I need a gynecologist appointment. I can only visit late in the evening, after 10 PM, because I work during the day. I’d like to know if such time slots are available. My issue is moderately urgent — I suspect a flare-up of a chronic yeast infection."
+> Before responding, think step-by-step:
+> 1. **Request type** → new appointment / reschedule / cancel / availability check?
+> 2. **Extract constraints** → specialty, timeframe, location, language, special requirements
+> 3. **Assess feasibility** → are the constraints realistic for standard clinic hours/services?
+> 4. **Check data access** → do I have real calendar/patient history/doctor availability?
+> 5. **If NO data** → identify what information I need to ask for
+> 6. **Validate before output** → can I fulfill this WITHOUT inventing slots, names, or patient data?
+> 7. **Format response** → professional, concise (under 100 words), actionable
+> 
+> Now respond based on your reasoning.
+
+**Результат**: Чёткий результат без галлюцинаций, достаточно краткий и профессиолнальный. Есть альтернативные пути: 4 опции (утро, обед, суббота, телемедицина) - мы не теряем клиента.
+**Заметки**: CoT НЕ ПОКАЗАН (нет цепочки рассуждений). Модель думала внутренне, но не показала reasoning. (конфликт с ролью ассистента). Не запросил недостающие данные (критично, пропустил шаг 5). Перекладывает работу на пациента ("I recommend calling your clinic directly"). Расплывчатые альтернативы (другие клиники, которые нужно гуглить). Нет эмпатии к жёсткому constraint (10 PM).
+
+## Prompt 7:
+**Тип**: CoT + Self-Verification (technical, двухчастный output + мета)
+
+**Промпт**:
+> You are a healthcare scheduling assistant.
+> 
+> A patient says: "I need a gynecologist appointment. I can only visit late in the evening, after 10 PM, because I work during the day. I'd like to know if such time slots are available. My issue is moderately urgent — I suspect a flare-up of a chronic yeast infection."
+> 
+> PART 1: [INTERNAL REASONING - System Debug Only]
+> Think step-by-step:
+> 1. **Request type** → new appointment / reschedule / cancel / info?
+> 2. **Extract constraints** → specialty, timeframe, location, language, special requirements
+> 3. **Assess feasibility** → are constraints realistic for standard clinic hours?
+> 4. **Check data access** → do I have real calendar/patient history?
+> 5. **Missing data identification** → what MUST I ask for? (location, insurance, patient name, etc.)
+> 6. **Alternative pathways** → telehealth, symptom-check, urgent care applicable?
+> 7. **Validate output** → can I answer WITHOUT inventing slots, names, or data?
+> 
+> PART 2: [META-VERIFICATION - Self-Check]
+> Before sending response, verify:
+> - ✓ Did I complete ALL 7 steps above?
+> - ✓ Did I identify missing data in Step 5?
+> - ✓ Did I ASK for that missing data in my response?
+> - ✓ Did I avoid inventing doctor names, times, or patient history?
+> - ✓ Is my response under 100 words and actionable?
+> 
+> If ANY checklist item = ✗, revise your response.
+> 
+> PART 3: [PATIENT RESPONSE]
+> Now provide your professional response to the patient.
+> 
+> FORMAT YOUR OUTPUT AS:
+> ```
+> ## INTERNAL REASONING:
+> [Your step-by-step thinking]
+> 
+> ## META-CHECK:
+> ✓/✗ All 7 steps completed?
+> ✓/✗ Missing data identified?
+> ✓/✗ Asked for missing data?
+> ✓/✗ No inventions?
+> ✓/✗ Under 100 words?
+> 
+> ## PATIENT RESPONSE:
+> [Your final answer]
+```
+**Результат**: все пункты выполнены, ничего не пропущено, ответ чёткий и профессиональный. Нет галлюцинаций.
+**Заметки**: метачек может быть обманом и мы не можем этого проверить. Всё ещё игнорирует "ONLY after 10 PM" constraint. Reasoning vs Response рассинхронизация (Step 3: "10 PM+ is unrealistic; clinics close 5-7 PM"  Step 6: "Telehealth viable for late hours"). Meta-check неполный — ловит технические ошибки, НЕ логические.
+Предложение по улучшению:
+PART 2: [META-VERIFICATION - Enhanced]
+Before sending response, verify:
+✓ Did I complete ALL 7 steps?
+✓ Did I identify missing data AND ask for it in response?
+✓ Did I respect patient's HARD constraints? (if "ONLY X", did I avoid suggesting non-X?)
+✓ Did I propose alternatives WITHIN stated constraints first?
+✓ Did I avoid inventing data?
+✓ Is response under 100 words and actionable?
+✓ Did I check for logical contradictions in my reasoning?
+
+If ANY = ✗, explain why and revise.
