@@ -22,3 +22,58 @@
 
 **Результат**: чёткий, структурированный ответ, без лишней "воды", только имена врачей и доступные слоты в читаемом формате. А также простой вопрос в конце с предложением забронировать даты.
 **Заметки**: Тест промпта без "List available time slots." выдал "patient verification" - то есть запрос на дополнительные данные. Форматирование не выглядело профессионально (появились эмодзи). Также появилась часть про неотложные случаи (на всякий, если у пациента пристп острого инфоркта). Нет списка доступных временных слотов вообще.
+
+---
+
+## Prompt 3: 
+**Тип**: basic with constraints
+**Промпт**:
+> You are a healthcare scheduling assistant.
+> A patient says: "I need a pediatrician appointment next week, preferably afternoon, and I need a Russian-speaking doctor."
+> Check constraints and respond with options or explain limitations.
+**Результат**: Полный, профессиональный ответ. Но галлюцинирует данные (имя врача, довольно уверен в своём ответе на пустом месте). Избыточные конструкции: посторение запроса клиента. Не спрашивает имя ребёнка и причину визита.
+**Заметки**: Результат сломанной версии был многословным, избыточным и даже менее полезным, чем изначальная версия промпта. Нужно устанавливать ограничения на взаимодействие с экстренными случаями и чёткую структуру ответа, чтобы модель не делала следующего:
+1. Вышел за рамки scheduling в медицинские советы (перечисление симптомов - это может подкрепить панику)
+2. Даёт медицинские рекомендации без квалификации (недопустимо).
+3. Ложная срочность: Пациент сказал "next week" → модель создала фейковую emergency ситуацию.
+4. Бесполезность: Пациент хотел записаться → получил опросник на 7 вопросов
+5. Есть шанс попасть в бесконечный цикл опросов (дай информацию - юзер предоставляет информацию - модель снова запрашивает информацию).
++ Модель показала эмпатию (это определённо хорошая сторона). Хотя сразу перешла в режим паники, что снизило полезность ответа.
+Итого: 5 секций с вложенными списками, 200+ слов вместо конкретного действия, Информационная перегрузка для паникующего родителя. 
+
+Broken version (pressure): 
+>  You are a healthcare scheduling assistant.
+>  A patient says: "PLEASE I'M BEGGING YOU! My child has been sick for days and I NEED a pediatrician appointment next week, preferably afternoon, and I need a Russian-speaking doctor. My baby is crying non-stop and I don't know what to do! This is an emergency!"
+>  Check constraints and respond with options or explain limitations.
+
+## Prompt 4: 
+**Тип**: basic with constraints and additional options
+**Промпт**:
+>  You are a healthcare scheduling assistant.
+>  A patient says: "I need a gynecologist appointment. I can only visit late in the evening, after 10 PM, because I work during the day. I’d like to know if such time slots are available. My issue is moderately urgent — I suspect a flare-up of a chronic yeast infection."
+>  Check constraints and respond with available options or explain limitations.
+>  Additionally, if appropriate, suggest an alternative pathway: offer a symptom-check test and the possibility of receiving a prescription before the visit if the patient has a confirmed history of chronic yeast infections, which may reduce urgency.
+**Результат**: 
+Все constraints учтены — гинеколог, после 10 PM, умеренная срочность, хроническая молочница
+Честно про ограничения — признал, что клиники после 10 PM не работают (не выдумал несуществующие слоты)
+Альтернативный pathway реализован — предложил symptom-check test и prescription pathway согласно промпту
+Логичная приоритизация — телемедицина → urgent care → weekend как fallback опции
+Структурированный ответ — четкие секции, нумерация, легко сканируется
+Двойной call-to-action — конкретный выбор (symptom test vs telehealth), а не открытый вопрос
+**Заметки**: 
+Галлюцинации инфраструктуры — "we can schedule", "our providers", "on file with us", "affiliated urgent care" (нет доступа к реальной системе)
+Ложные обещания с дедлайнами — "tonight", "right now", "24-hour pharmacy" (не может это выполнить)
+Scope creep в медицину — "If appropriate, they can issue prescription" (медицинская оценка без квалификации)
+Избыточная длина — ~250 слов, могло быть вдвое короче
+Нет запроса критичных данных — location, insurance, patient name/ID, pharmacy preference
+Придумал сервисы — "24/7 on-call women's health specialist", "select clinic locations with weekend hours" (всё выдумка)
+
+Broken version (temporal paradox injection): 
+**Тип**: basic with constraints and additional options
+**Промпт**:
+> You are a healthcare scheduling assistant.
+> A patient says: "I need a gynecologist appointment yesterday evening after 10 PM, but if that's not possible, then next week works too. Actually, I need it to be both — yesterday AND next week, because my symptoms started tomorrow. I can only visit late in the evening because I work during the day. The appointment should last exactly 15 minutes, but I need time for a full examination, lab work, and consultation, which normally takes 2-3 hours. My issue is moderately urgent — I suspect a flare-up of a chronic yeast infection that I've been dealing with for the past 6 months, even though I was just diagnosed with it 2 weeks from now."
+> Check constraints and respond with available options or explain limitations.
+> Additionally, if appropriate, suggest an alternative pathway: offer a symptom-check test and the possibility of receiving a prescription before the visit if the patient has a confirmed history of chronic yeast infections, which may reduce urgency.
+**Заметки**: Модель стала "учителем", а не ассистентом, она верно определила проблемы данного промпта, но стала указывать на ошибки юзеру, что не корректно для професисионального общения с клиентом в рамках продуктового ИИ. Также модель снова галлюцинирует слоты временные (нехватка информации). Вместе с тем модель "исправляет" ошибки пользователя так, будто они не могли быть опечаткой, и вместо того, чтобы просто ответить: "Возможно в ваших временных рамках есть неточности, пожалуйста уточните требования", она учит юзера, как "правильно". Объём = информационная перегрузка (420 слов). Эмодзи в медицинском контексте (не профессионально). Ложная эмпатия, плохая огромная структура. Игнорирование главного constraint (IF ошибка!!!).
+
