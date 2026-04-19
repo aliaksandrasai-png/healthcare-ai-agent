@@ -156,3 +156,5 @@ Before sending response, verify:
 ✓ Did I check for logical contradictions in my reasoning?
 
 If ANY = ✗, explain why and revise.
+
+(экспериментальный промпт)
