@@ -10,8 +10,103 @@
 **Результат**: последовательный ответ с предложением альтернатив, выглядит профессионально. Придумал имя врача (не было данных).Придумал свободные слоты (не было данных).
 **Заметки**: Без роли, если промпт выглядит таким образом ("I need to see a therapist tomorrow at 10am.") - ответ не выглядит как профессиональный ответ от специалиста, а скорее как список доступных действий и контакты кризисного цента в конце (предположение на суицидальный случай на всякий).
 
+Optimized with Answer Engineering:
 
+**Тип**: basic + Answer Engineering
+**Промпт**:
+> You are a healthcare scheduling assistant. Your role is strictly limited to appointment booking logistics.
+> A patient says: "I need to see a therapist tomorrow at 10am."
+
+## ANSWER ENGINEERING CONSTRAINTS:
+
+### Answer Space (allowed content):
+✅ CAN say:
+- "I need [specific information] to check availability"
+- "I don't have access to real-time scheduling"
+- "Standard clinic hours are typically..."
+
+❌ CANNOT say:
+- Any doctor names (you don't have access to staff lists)
+- Specific available time slots (you don't have calendar access)
+- "Let me check" / "I'll schedule" (you cannot perform these actions)
+- Medical advice or crisis resources (out of scope)
+
+### Answer Extractor:
+End your response with:
 ---
+FINAL_ACTION: [what system should do next]
+---
+Respond now.
+---
+
+**Результат** Галлюцинации (before) → Полный отказ от помощи (after). Полная абдикация ответственности. Избыточное переспрашивание. FINAL_ACTION бесполезен.
+**Заметки**: Надо попробовать дать модели теперь информацию, которую он может инспользовать, для повышения эффективности запроса, так как со снижением галлюцинаций до их отсутствия, появилась проблема отсутствия даже видимой полезности.
+
+
+**Тип**: basic + Answer Engineering (improoved)
+**Промпт**:
+> You are a healthcare scheduling assistant. Your role is to help patients navigate the appointment booking process.
+
+> A patient says: "I need to see a therapist tomorrow at 10am."
+
+## CORE FUNCTION:
+You CANNOT directly access calendars or book appointments, BUT you CAN:
+✅ Guide patients through the booking process
+✅ Ask for necessary information (location, insurance, preferences)
+✅ Suggest realistic alternatives if constraints are difficult
+✅ Provide general scheduling information (typical hours, wait times)
+
+## ANSWER ENGINEERING CONSTRAINTS:
+
+### Answer Space (nuanced rules):
+
+✅ CAN say (examples):
+- "To check availability, I need: [specific list]"
+- "Therapy appointments tomorrow may be limited due to short notice. I recommend also checking: [alternatives]"
+- "Typical therapy appointment availability is [general timeframes]"
+- "For urgent mental health needs, consider: [crisis resources IF patient indicates crisis]"
+
+❌ CANNOT say (strict):
+- Invented doctor names: "Dr. Smith" / "Dr. Johnson"
+- Specific available slots: "There's an opening at 2:15pm tomorrow"
+- False capabilities: "Let me check our system" / "I'm booking that now"
+- Phone numbers or URLs you don't actually have
+
+### Answer Shape (required structure):
+
+ASSESSMENT:
+
+Constraints: [list what patient said]
+Missing: [what you need to ask]
+Feasibility: [realistic evaluation]
+PATIENT_MESSAGE: [60-100 words]
+
+Acknowledge request
+Ask for 2-3 most critical pieces of missing info
+Suggest 1-2 alternatives IF constraint is difficult
+Provide ONE concrete next step
+FINAL_ACTION: [COLLECT_INFO / OFFER_ALTERNATIVES / ESCALATE_TO_HUMAN]
+
+text
+
+### Answer Extractor:
+Use the structure above. System will parse FINAL_ACTION for routing.
+
+Respond now.
+
+**Результат**: Улучшение структурности ответа, есть все три поля (ASSESSMENT + MESSAGE + ACTION), удобно парсить ответ. Полезность ответа повышается, появляются альтернативные варианты, но учеличен объем текста (три секции). Нет бессмысленного номера телефона с XXX вместо цифр в конце.
+**Заметки**:
+1.Answer Shape (2.5.1) = принудительный формат заставил модель структурировать мысли
+2.Answer Space (2.5.2) nuanced rules = "CAN provide general info" позволило дать полезный контекст
+3.CORE FUNCTION update в Prompt 2: "You CAN suggest realistic alternatives" → модель получила разрешение помогать
+4.Answer Space strict rules в Prompt 2: "CANNOT: Phone numbers you don't have" → явный запрет сработал
+5. Role definition change: "strictly limited to logistics" (Prompt 1) vs "help patients navigate" (Prompt 2) → изменение роли = изменение tone
+НО: В Prompt 2 был лимит "60-100 words" для PATIENT_MESSAGE → модель нарушила (130 слов)
+НО: Виден Assesment клиенту, то есть "Нужен Answer Extractor (2.5.3) для отделения ASSESSMENT от PATIENT_MESSAGE"
+
+Результат: +250% рост полезности при сохранении 0 галлюцинаций
+Результат: +100% улучшение тона без потери boundaries (Role definition влияет на tone больше, чем constraints)
+
 
 ## Prompt 2: Availability Check
 **Тип**: basic
