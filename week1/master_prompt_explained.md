@@ -1,5 +1,5 @@
 # Master Prompt v4.2 — Architecture Explained
-# Author: [твоё имя]
+# Author: Aliaksandra Sheviardova
 # Date: 22 April 2026 (Week 1 Review)
 
 ## Overview
