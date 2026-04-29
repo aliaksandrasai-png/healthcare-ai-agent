@@ -8,6 +8,7 @@ Day 10 — Full CRUD + Audit Logging + Conversation Memory
 # ============================================================
 from groq import Groq
 from dotenv import load_dotenv
+from langsmith import traceable
 import sqlite3
 import json
 import os
@@ -132,6 +133,7 @@ TOOLS = [
 # ============================================================
 # 4. FUNCTIONS
 # ============================================================
+@traceable(run_type="tool")
 def check_availability(date, doctor_name=None, department=None):
     """Check available slots in the database"""
     if doctor_name in [None, "null", "unknown", ""]:
@@ -170,7 +172,7 @@ def check_availability(date, doctor_name=None, department=None):
         output += f"  {time} — {doctor} ({dept})\n"
     return output
 
-
+@traceable(run_type="tool")
 def book_slot(date, time, doctor_name, patient_name, patient_phone, insurance=None):
     """Book an appointment for a patient"""
     cursor.execute("""
@@ -195,7 +197,7 @@ def book_slot(date, time, doctor_name, patient_name, patient_phone, insurance=No
     conn.commit()
     return f"Appointment confirmed: {doctor_name} on {date} at {time} for {patient_name}"
 
-
+@traceable(run_type="tool")
 def cancel_appointment(date, time, doctor_name, patient_name):
     """Cancel a patient's appointment"""
     cursor.execute("""
@@ -294,15 +296,34 @@ def validate_response(function_result, agent_response):
 # ============================================================
 # 6. MAIN AGENT FUNCTION
 # ============================================================
+@traceable(
+    run_type="llm",
+    name="Groq Chat",
+    metadata={"ls_provider": "groq", "ls_model_name": "llama-3.3-70b-versatile"}
+)
+def call_groq(messages, tools=None, tool_choice=None):
+    """Wrapper for Groq LLM calls — traced separately in LangSmith"""
+    kwargs = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": messages,
+    }
+    if tools is not None:
+        kwargs["tools"] = tools
+    if tool_choice is not None:
+        kwargs["tool_choice"] = tool_choice
+    
+    return client.chat.completions.create(**kwargs)
+
+
+@traceable(name="healthcare_agent")
 def run_agent(user_message, conversation_history):
     """Process a patient message and return agent response"""
 
     conversation_history.append({"role": "user", "content": user_message})
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history,
-        tools=TOOLS
+    response = call_groq(
+    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history,
+    tools=TOOLS
     )
 
     message = response.choices[0].message
@@ -333,16 +354,14 @@ def run_agent(user_message, conversation_history):
 
         # Get final response
         try:
-            final_response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+            final_response = call_groq(
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history,
                 tools=TOOLS,
                 tool_choice="none"
             )
             agent_response = final_response.choices[0].message.content
         except Exception:
-            final_response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+            final_response = call_groq(
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history
             )
             agent_response = final_response.choices[0].message.content
