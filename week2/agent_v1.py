@@ -16,7 +16,9 @@ from datetime import datetime
 
 load_dotenv()
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-conn = sqlite3.connect("scheduler.db")
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scheduler.db")
+AUDIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audit.log")
+conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
 # ============================================================
@@ -249,7 +251,7 @@ RESULT: {result}
 AGENT RESPONSE: {agent_response}
 {'='*60}
 """
-    with open("audit.log", "a", encoding="utf-8") as f:
+    with open(AUDIT_PATH, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
 # ============================================================

@@ -1,0 +1,3 @@
+I'd like to book an appointment with Dr. Smith on 2026-04-29 at 13:00
+John Doe, phone 555-0100, BlueCross insurance
+quit
